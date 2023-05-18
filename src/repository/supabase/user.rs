@@ -60,7 +60,7 @@ impl UserRepository for SupabaseRepo {
         match self
             .client
             .from("facebookUsers")
-            .eq("id", user.id.to_string())
+            .eq("person_id", user.id.to_string())
             .update(format!(
                 r#"[{{"person_id": "{}", "name": "{}", "email": "{}", "profile_picture": "{}"}}]"#,
                 user.id, user.name, user.email, user.picture
@@ -72,6 +72,7 @@ impl UserRepository for SupabaseRepo {
                 if r.status() == StatusCode::OK {
                     return Ok(user);
                 }
+                println!("Error updating user: {:?}", r.text().await);
                 return Err("User not updated".to_string());
             }
             Err(_) => return Err("User not updated".to_string()),
