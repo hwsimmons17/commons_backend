@@ -6,9 +6,8 @@ use crate::{
     routes::users::create_user,
 };
 use axum::{routing::post, Router};
-use reqwest::Method;
 use tokio::sync::Mutex;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::{cors::{CorsLayer}, trace::TraceLayer};
 
 pub fn create_router<U>(user_repo: U) -> Router
 where
@@ -19,10 +18,7 @@ where
 
     Router::new()
         .route("/user", post(create_user))
-        .layer(
-            CorsLayer::new()
-                .allow_methods([Method::GET, Method::POST])
-                .allow_origin(Any),
-        )
+        .layer( CorsLayer::permissive() )
+        .layer(TraceLayer::new_for_http())
         .with_state(app_state)
 }
