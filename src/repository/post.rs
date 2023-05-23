@@ -13,6 +13,8 @@ pub struct Post {
     pub content: String,
     pub parent_id: Option<Uuid>,
     pub creator_id: u64,
+    pub creator_name: String,
+    pub creator_picture: String,
 }
 
 pub type DynPostRepo = Arc<Mutex<dyn PostRepository>>;

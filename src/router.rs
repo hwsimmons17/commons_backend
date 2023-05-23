@@ -7,7 +7,11 @@ use crate::{
         post::{DynPostRepo, PostRepository},
         user::{DynUserRepo, UserRepository},
     },
-    routes::{auth::auth, posts::create_post, users::create_user},
+    routes::{
+        auth::auth,
+        posts::{create_post, get_posts},
+        users::create_user,
+    },
 };
 use axum::{
     middleware,
@@ -32,6 +36,7 @@ where
 
     Router::new()
         .route("/posts", post(create_post))
+        .route("/posts", get(get_posts))
         .layer(middleware::from_fn_with_state(app_state.clone(), auth))
         .route("/user", post(create_user))
         .layer(CorsLayer::permissive())

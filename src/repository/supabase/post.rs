@@ -1,5 +1,7 @@
 use axum::async_trait;
+use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::repository::post::{Post, PostRepository};
@@ -7,6 +9,37 @@ use crate::repository::post::{Post, PostRepository};
 use super::SupabaseRepo;
 
 const TABLE: &str = "textPosts";
+
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
+struct JoinPost {
+    id: Uuid,
+    created_at: DateTime<Utc>,
+    content: String,
+    parent_id: Option<Uuid>,
+    creator_id: u64,
+    #[serde(rename = "facebookUsers")]
+    facebook_users: FacebookUsers,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
+struct FacebookUsers {
+    name: String,
+    profile_picture: String,
+}
+
+impl JoinPost {
+    fn convert_to_post(&self) -> Post {
+        return Post {
+            id: self.id,
+            created_at: self.created_at,
+            content: self.content.clone(),
+            parent_id: self.parent_id,
+            creator_id: self.creator_id,
+            creator_name: self.facebook_users.name.clone(),
+            creator_picture: self.facebook_users.profile_picture.clone()
+        };
+    }
+}
 
 #[async_trait]
 impl PostRepository for SupabaseRepo {
@@ -31,16 +64,30 @@ impl PostRepository for SupabaseRepo {
     }
 
     async fn read_all(&self) -> Result<Vec<Post>, String> {
-        match self.client.from(TABLE).select("*").execute().await {
+        match self
+            .client
+            .from(TABLE)
+            .select("*, facebookUsers!inner(name, profile_picture)")
+            .order("created_at")
+            .limit(20)
+            .execute()
+            .await
+        {
             Ok(r) => match r.text().await {
                 Ok(t) => {
-                    let body: Result<Vec<Post>, serde_json::Error> = serde_json::from_str(&t);
+                    let body: Result<Vec<JoinPost>, serde_json::Error> = serde_json::from_str(&t);
                     match body {
-                        Ok(b) => Ok(b),
-                        Err(_) => Err("Could not read posts".to_string()),
+                        Ok(b) => Ok(b.iter().map(|post| post.convert_to_post()).collect()),
+                        Err(e) => {
+                            eprintln!("Error parsing posts: {}", e);
+                            Err("Could not read posts".to_string())
+                        }
                     }
                 }
-                Err(_) => Err("Could not read posts".to_string()),
+                Err(e) => {
+                    eprintln!("Error reading posts: {}", e);
+                    Err("Could not read posts".to_string())
+                }
             },
             Err(_) => return Err("Could not read posts".to_string()),
         }
@@ -101,5 +148,22 @@ impl Post {
             r#"[{{"id": "{}","content": "{}", "creator_id": "{}"}}]"#,
             self.id, self.content, self.creator_id
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::repository::{post::PostRepository, supabase::SupabaseRepo};
+
+    #[tokio::test]
+    async fn play_around_with_joins() {
+        dotenv::dotenv().ok();
+        let supabase_url = std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set.");
+        let supabase_api_key =
+            std::env::var("SUPABASE_API_KEY").expect("SUPABASE_API_KEY must be set.");
+        let repo = SupabaseRepo::new(&supabase_url, &supabase_api_key);
+
+        let posts = repo.read_all().await.unwrap();
+        println!("Posts: {:?}", posts);
     }
 }

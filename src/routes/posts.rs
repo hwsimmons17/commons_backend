@@ -26,6 +26,8 @@ pub async fn create_post(
         content: payload.content,
         parent_id: None,
         creator_id: user.id,
+        creator_name: user.name,
+        creator_picture: user.picture
     };
 
     match app_state.post_repo.lock().await.create(post).await {
@@ -38,4 +40,24 @@ pub async fn create_post(
             ))
         }
     }
+}
+
+#[axum_macros::debug_handler]
+pub async fn get_posts(
+    State(app_state): State<AppState>,
+    Extension(user): Extension<User>,
+) -> Result<Json<Vec<Post>>, (StatusCode, String)> {
+    let posts: Vec<Post>;
+    match app_state.post_repo.lock().await.read_all().await {
+        Ok(p) => posts = p,
+        Err(e) => {
+            eprintln!("Error geting posts: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error getting posts".to_string(),
+            ));
+        }
+    };
+
+    return Ok(Json::from(posts));
 }

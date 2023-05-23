@@ -16,6 +16,7 @@ pub struct User {
     pub id: u64,
     pub name: String,
     pub email: String,
+    pub picture: String,
 }
 
 impl OAuth {
@@ -63,7 +64,9 @@ impl OAuth {
             return Err("Email cannot be empty".to_string());
         }
 
-        Ok(User { id, name, email })
+        let picture = claims["picture"].clone();
+
+        Ok(User { id, name, email, picture })
     }
 }
 

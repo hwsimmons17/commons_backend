@@ -107,15 +107,3 @@ impl UserRepository for SupabaseRepo {
         }
     }
 }
-
-fn unwrap_read_user(res: Result<Vec<User>, String>) -> Result<User, String> {
-    match res {
-        Ok(users) => {
-            if users.len() == 0 {
-                return Err("Expected len of users to be greater than 0".to_string());
-            }
-            return Ok(users[0].clone());
-        }
-        Err(e) => Err(e),
-    }
-}
